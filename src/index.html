@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>Mixed Pipes</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="app.ts"></script>
+  </head>
+  <body>
+    <h1 style="text-align: center;">Mixed Pipes</h1>
+    <p class="instruction" style="font-style: italic;">
+      Your mission is to connect all pipes to form one single network.
+    </p>
+    <p class="instruction">
+      Left click = Rotate | Right click = Lock
+      <br>ZQSD = Move the grid if walls are broken
+    </p>
+    <p class="instruction form">
+      Width <input type="number" id="width" name="width" class="value"></input> |
+      Height <input type="number" id="height" name="height" class="value"></input> |
+      <input type="checkbox" id="broken" name="broken"></input> <label for="broken">Broken Walls</label> |
+      <input type="submit" value="New grid" id="reset"></input>
+      <br>
+      <label for="qol_spin">Playstyle </label>
+      <select name="qol_spin" id="qol_spin">
+        <option value="vanilla">Free rotations</option>
+        <option value="restrained" selected>Restrained rotations</option>
+        <option value="autolock">Restrained rotations and auto lock</option>
+        <option value="snowball">Snowball</option>
+      </select>
+    </p>
+    <p style="text-align: center;">
+      <canvas id="maze" width="300" height="300">
+
+      </canvas>
+    </p>
+  </body>
+</html>

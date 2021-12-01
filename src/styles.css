@@ -1,0 +1,14 @@
+h1 {
+  color: rgba(205, 23, 211, 0.596);
+  font-family: cursive;
+}
+
+.instruction {
+  text-align: center;
+  font-family: monospace;
+  font-weight: bold;
+}
+
+input.value {
+  width: 5em;
+}
