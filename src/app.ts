@@ -2,7 +2,7 @@ import mazeGenerator from './maze-generator';
 import gridSolver from './grid-solver';
 import { Dir, Dirs, Dir_opposite } from './base/dir';
 import { Grid } from './base/abstract-grid';
-import { Point2D } from './base/grid-component';
+import { Point2D, Slot } from './base/grid-component';
 
 
 const SLOT_SIZE = 100;
@@ -176,15 +176,48 @@ class PlayerMaze extends Grid<RealSlot> {
 
     const ctx = canvas.getContext('2d')!;
 
+    const extra = this.brokenWalls ? SLOT_SIZE / 2 : 0;
+
     ctx.fillStyle = 'red';
-    ctx.fillRect(0, 0, this.width * SLOT_SIZE, this.height * SLOT_SIZE);
+    ctx.fillRect(0, 0, this.width * SLOT_SIZE + extra * 2, this.height * SLOT_SIZE + extra * 2);
 
     for (let y = 0; y != this.height; ++y) {
       for (let x = 0; x != this.width; ++x) {
         const color = getPipeColor(x, y);
         const slot = this.grid[y][x];
         const lp = this._lockParadigmOf(slot, x, y);
-        slot.draw(ctx, x * SLOT_SIZE, y * SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, color, lp, this.blackPipes);
+        slot.draw(ctx, x * SLOT_SIZE + extra, y * SLOT_SIZE + extra, SLOT_SIZE, SLOT_SIZE, color, lp, this.blackPipes);
+      }
+    }
+
+    if (this.brokenWalls) {
+      const that = this;
+
+      function drawBrokenWall(x: number, y: number, drawX: number, drawY: number) {
+        const color = getPipeColor(x, y);
+        const slot = that.grid[y][x];
+        const lp = that._lockParadigmOf(slot, x, y);
+        slot.draw(ctx, drawX, drawY, SLOT_SIZE, SLOT_SIZE, color, lp, that.blackPipes);
+  
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = "white";
+        ctx.fillRect(drawX, drawY, SLOT_SIZE, SLOT_SIZE);
+        ctx.globalAlpha = 1;
+      }
+
+      drawBrokenWall(this.width - 1, this.height - 1,                        - extra,                         - extra);
+      drawBrokenWall(0             , this.height - 1, SLOT_SIZE * this.width + extra,                         - extra);
+      drawBrokenWall(0             , 0              , SLOT_SIZE * this.width + extra, SLOT_SIZE * this.height + extra);
+      drawBrokenWall(this.width - 1, 0              ,                        - extra, SLOT_SIZE * this.height + extra);
+
+      for (let x = 0; x != this.width; ++x) {
+        drawBrokenWall(x, this.height - 1, SLOT_SIZE * x + extra,                         - extra);
+        drawBrokenWall(x, 0              , SLOT_SIZE * x + extra, SLOT_SIZE * this.height + extra);
+      }
+      
+      for (let y = 0; y != this.width; ++y) {
+        drawBrokenWall(0             , y              , SLOT_SIZE * this.width + extra, SLOT_SIZE * y + extra);
+        drawBrokenWall(this.width - 1, y              ,                        - extra, SLOT_SIZE * y + extra);
       }
     }
   }
@@ -365,7 +398,9 @@ window.onload = () => {
       !!(document.getElementById("broken") as HTMLInputElement).checked
     );
 
-    setCanvasSize(canvas, SLOT_SIZE * trueMaze.width, SLOT_SIZE * trueMaze.height);
+    const extra = trueMaze.brokenWalls ? SLOT_SIZE / 2 : 0;
+
+    setCanvasSize(canvas, SLOT_SIZE * trueMaze.width + extra * 2, SLOT_SIZE * trueMaze.height + extra * 2);
     trueMaze.draw(canvas);
     return trueMaze;
   }
@@ -373,20 +408,38 @@ window.onload = () => {
   let trueMaze = setupNewGrid();
   document.getElementById("reset")!.onclick = () => trueMaze = setupNewGrid()
 
-  function getMouseCoordinates(event: MouseEvent) {
-    const x = event.clientX - canvas.getBoundingClientRect().x;
-    const y = event.clientY - canvas.getBoundingClientRect().y;
+  function getClickedSlot(event: MouseEvent)
+    : { type: 'void' }
+    | { type: 'slot', x: number, y: number, slot: RealSlot }
+    | { type: 'movement', directions: ('right' | 'down' | 'up' | 'left')[] }
+  {
+    let x = event.clientX - canvas.getBoundingClientRect().x;
+    let y = event.clientY - canvas.getBoundingClientRect().y;
+
+    if (trueMaze.brokenWalls) {
+      x -= SLOT_SIZE / 2;
+      y -= SLOT_SIZE / 2;
+    }
 
     const slotX = Math.floor(x / SLOT_SIZE);
     const slotY = Math.floor(y / SLOT_SIZE);
 
-    return { x: slotX, y: slotY };
-  }
+    if (slotX >= 0 && slotY >= 0 && slotX < trueMaze.width && slotY < trueMaze.height) {
+      return { type: 'slot', x: slotX, y: slotY, slot: trueMaze.grid[slotY][slotX] };
+    } else if (trueMaze.brokenWalls) {
+      let result = { type: 'movement' as const, directions: [] as ('right' | 'down' | 'up' | 'left')[] };
 
-  function getClickedSlot(event: MouseEvent) {
-    const { x, y } = getMouseCoordinates(event);
+      if (slotX < 0) result.directions.push('right');
+      if (slotY < 0) result.directions.push('down');
+      if (slotX >= trueMaze.width) result.directions.push('left');
+      if (slotY >= trueMaze.height) result.directions.push('up');
+
+      return result;
+    } else{
+      return { type: 'void' };
+    }
     
-    if (x >= 0 && y >= 0 && x < trueMaze.width && y < trueMaze.height) {
+    if (type == 'slot' && x >= 0 && y >= 0 && x < trueMaze.width && y < trueMaze.height) {
       return trueMaze.grid[y][x];
     } else {
       return null;
@@ -394,10 +447,16 @@ window.onload = () => {
   }
 
   canvas.addEventListener('click', event => {
-    const slot = getClickedSlot(event);
-    if (slot) {
-      const { x, y } = getMouseCoordinates(event);
-      rotateSlot(slot, x, y, trueMaze);
+    const clickedOn = getClickedSlot(event);
+
+    if (clickedOn.type == 'slot') {
+      rotateSlot(clickedOn.slot, clickedOn.x, clickedOn.y, trueMaze);
+      trueMaze.draw(canvas);
+    } else if (clickedOn.type == 'movement') {
+      for (const move of clickedOn.directions) {
+        trueMaze.shift(move);
+      }
+
       trueMaze.draw(canvas);
     }
   });
@@ -405,8 +464,9 @@ window.onload = () => {
   canvas.addEventListener('contextmenu', event => {
     event.preventDefault();
 
-    const slot = getClickedSlot(event);
-    if (slot) {
+    const clickedOn = getClickedSlot(event);
+    if (clickedOn.type == 'slot') {
+      const slot = clickedOn.slot;
       slot.blocked = !slot.blocked;
       trueMaze.draw(canvas);
     }
