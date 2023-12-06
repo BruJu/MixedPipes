@@ -215,7 +215,7 @@ class PlayerMaze extends Grid<RealSlot> {
         drawBrokenWall(x, 0              , SLOT_SIZE * x + extra, SLOT_SIZE * this.height + extra);
       }
       
-      for (let y = 0; y != this.width; ++y) {
+      for (let y = 0; y != this.height; ++y) {
         drawBrokenWall(0             , y              , SLOT_SIZE * this.width + extra, SLOT_SIZE * y + extra);
         drawBrokenWall(this.width - 1, y              ,                        - extra, SLOT_SIZE * y + extra);
       }
@@ -379,9 +379,9 @@ function setCanvasSize(canvas: HTMLCanvasElement, width: number, height: number)
 }
 
 const DEFAULT_SETTINGS = {
-  width: 5,
+  width: 10,
   height: 5,
-  broken: false
+  broken: true
 };
 
 window.onload = () => {
@@ -437,12 +437,6 @@ window.onload = () => {
       return result;
     } else{
       return { type: 'void' };
-    }
-    
-    if (type == 'slot' && x >= 0 && y >= 0 && x < trueMaze.width && y < trueMaze.height) {
-      return trueMaze.grid[y][x];
-    } else {
-      return null;
     }
   }
 
